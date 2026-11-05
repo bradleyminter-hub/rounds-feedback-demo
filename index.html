@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Rounds Feedback</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: phone-first single column; roster view and resident view swap in place; record button is the one loud element. */
+:root{
+  --bg:#eef2f3; --surface:#ffffff; --ink:#14232b; --muted:#5b6d75; --line:#d3dde0;
+  --accent:#0e6e7a; --accent-ink:#ffffff; --rec:#c8322b; --rec-soft:#f7dedb;
+  --ok:#2c7a4b; --warn:#9a6200; --chip:#e1ebed;
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1a1f; --surface:#17252b; --ink:#e4eef0; --muted:#93a8ae; --line:#2a3d44;
+  --accent:#4fb3bf; --accent-ink:#06191c; --rec:#ef5b52; --rec-soft:#3a1d1b;
+  --ok:#6ccb91; --warn:#e3aa4a; --chip:#203238; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1a1f; --surface:#17252b; --ink:#e4eef0; --muted:#93a8ae; --line:#2a3d44;
+  --accent:#4fb3bf; --accent-ink:#06191c; --rec:#ef5b52; --rec-soft:#3a1d1b;
+  --ok:#6ccb91; --warn:#e3aa4a; --chip:#203238; color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 var(--f-body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 48px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.wrap{max-width:640px;margin:0 auto}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.mono{font-family:var(--f-mono);font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:14px 10px;display:grid;gap:10px}
+.brand{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.brand h1{font-size:24px;font-weight:800;letter-spacing:-.01em}
+.sample{font-family:var(--f-mono);font-size:11px;padding:3px 8px;border-radius:99px;background:var(--chip);color:var(--muted);white-space:nowrap}
+.search{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);font-size:17px}
+.tabs{display:flex;gap:6px}
+.tab{flex:1;padding:9px 6px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-weight:700}
+.tab[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+
+.group{margin-top:18px}
+.group-h{display:flex;justify-content:space-between;align-items:baseline;padding-bottom:6px;border-bottom:1px solid var(--line);margin-bottom:6px}
+.group-h h2{font-size:17px;font-weight:600}
+.res{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:10px 6px;background:none;border:0;border-bottom:1px solid var(--line)}
+.res:hover{background:var(--surface)}
+.av{flex:none;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:14px;background:var(--chip);color:var(--accent)}
+.res .nm{flex:1;min-width:0}
+.res .nm b{display:block}
+.res .nm span{font-size:13px;color:var(--muted)}
+.count{font-family:var(--f-mono);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.count.has{color:var(--accent)}
+.empty{color:var(--muted);padding:24px 0;text-align:center}
+
+/* resident view */
+.back{background:none;border:0;padding:14px 0 4px;color:var(--accent);font-weight:700}
+.rhead{display:flex;gap:14px;align-items:center;padding-block:6px 14px}
+.rhead .av{width:56px;height:56px;font-size:18px}
+.rhead h2{font-size:26px;font-weight:800;line-height:1.15}
+.ctx{display:flex;gap:8px;flex-wrap:wrap}
+.ctx label{flex:1 1 180px;display:grid;gap:4px}
+.ctx select{padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+
+.talk-zone{display:grid;justify-items:center;gap:10px;padding:26px 0 14px}
+.talk{width:176px;height:176px;border-radius:50%;border:0;background:var(--rec);color:#fff;
+  font-family:var(--f-display);font-size:24px;font-weight:800;display:grid;place-items:center;
+  box-shadow:0 0 0 10px var(--rec-soft);transition:transform .12s}
+.talk:active{transform:scale(.97)}
+.talk svg{width:46px;height:46px;display:block;margin:0 auto 4px}
+.talk.live{animation:pulse 1.3s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 10px var(--rec-soft)}50%{box-shadow:0 0 0 24px var(--rec-soft)}}
+@media (prefers-reduced-motion:reduce){.talk.live{animation:none;box-shadow:0 0 0 18px var(--rec-soft)}}
+.hint{font-size:14px;color:var(--muted);text-align:center;max-width:42ch}
+
+textarea{width:100%;min-height:130px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface);resize:vertical;line-height:1.5}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.btn{padding:12px 16px;border-radius:12px;border:1px solid var(--line);background:var(--surface);font-weight:700}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);flex:1}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.status{font-size:14px;color:var(--muted);min-height:1.5em;margin-top:8px}
+.status.err{color:var(--rec)}
+
+.note-edit{margin-top:16px;padding:16px;border-radius:14px;background:var(--surface);border:1px solid var(--line);display:grid;gap:12px}
+.note-edit label{display:grid;gap:4px}
+.note-edit textarea{min-height:70px;background:var(--bg)}
+.phi{font-size:13px;padding:8px 10px;border-radius:8px;background:var(--chip)}
+.phi.found{color:var(--warn)}
+.tags{display:flex;gap:6px;flex-wrap:wrap}
+.tag{font-family:var(--f-mono);font-size:11px;padding:3px 8px;border-radius:6px;background:var(--chip);color:var(--accent)}
+
+.hist{margin-top:28px}
+.hist h3{font-size:18px;margin-bottom:8px}
+.entry{padding:14px 0;border-top:1px solid var(--line);display:grid;gap:6px}
+.entry .meta{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.entry p{margin:0}
+.entry ul{margin:0;padding-left:20px}
+.entry .lbl{font-weight:700;font-size:13px;color:var(--muted);margin-top:4px}
+.banner{font-size:13px;padding:8px 12px;border-radius:10px;background:var(--chip);color:var(--muted);margin-top:10px}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <section id="rosterView">
+    <header class="top">
+      <div class="brand"><h1>Rounds Feedback</h1><span class="sample">DEMO · FAKE DATA</span></div>
+      <input id="q" class="search" type="search" placeholder="Find a resident" autocomplete="off" aria-label="Find a resident">
+      <div class="tabs" role="group" aria-label="Program">
+        <button class="tab" data-p="IM" aria-pressed="true">Internal Medicine</button>
+        <button class="tab" data-p="TY" aria-pressed="false">Transitional Year</button>
+      </div>
+    </header>
+    <div id="roster"></div>
+    <div id="storeBanner" class="banner" hidden></div>
+  </section>
+
+  <section id="resView" hidden>
+    <button class="back" id="back">‹ All residents</button>
+    <div class="rhead"><div class="av" id="rAv"></div><div><h2 id="rName"></h2><div class="mono" id="rMeta"></div></div></div>
+    <div class="ctx">
+      <label><span class="mono">Rotation</span>
+        <select id="rot"><option>Inpatient wards</option><option>ICU</option><option>Night float</option><option>Ambulatory clinic</option><option>Emergency medicine</option><option>Elective</option></select></label>
+      <label><span class="mono">Setting</span>
+        <select id="setting"><option>After rounds</option><option>After a procedure</option><option>After a family meeting</option><option>End of rotation</option></select></label>
+    </div>
+
+    <div class="talk-zone">
+      <button class="talk" id="talk" aria-label="Start dictating">
+        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><span id="talkLbl">Talk</span></span>
+      </button>
+      <div class="hint" id="hint">Tap and speak, then tap Stop. Leave out patient names and room numbers; the cleanup strips anything that slips through.</div>
+    </div>
+
+    <textarea id="raw" placeholder="Your dictation appears here. You can also type, or use your keyboard's microphone key."></textarea>
+    <div class="row">
+      <button class="btn primary" id="clean" disabled>Clean up note</button>
+      <button class="btn" id="clear">Clear</button>
+    </div>
+    <div class="row" id="passRow" hidden>
+      <input id="pass" class="search" type="password" placeholder="Demo passcode" autocomplete="off" aria-label="Demo passcode" style="flex:1">
+      <button class="btn" id="passSave">Continue</button>
+    </div>
+    <div class="status" id="status" role="status"></div>
+
+    <div class="note-edit" id="noteEdit" hidden>
+      <div class="mono">Review before saving</div>
+      <label><span class="mono">Summary</span><textarea id="fSum"></textarea></label>
+      <label><span class="mono">Strengths</span><textarea id="fStr"></textarea></label>
+      <label><span class="mono">Areas to improve</span><textarea id="fImp"></textarea></label>
+      <label><span class="mono">Action items</span><textarea id="fAct"></textarea></label>
+      <div class="tags" id="fTags"></div>
+      <div class="phi" id="fPhi"></div>
+      <div class="row"><button class="btn primary" id="save">Save to record</button></div>
+    </div>
+
+    <div class="hist"><h3>Feedback history</h3><div id="hist"></div></div>
+  </section>
+</div>
+
+<script>
+(function(){
+const ROSTER = [
+  ["IM",1,"Priya Raman"],["IM",1,"Daniel Okafor"],["IM",1,"Sofia Herrera"],["IM",1,"Kevin Tran"],["IM",1,"Hannah Weiss"],["IM",1,"Omar Haddad"],["IM",1,"Grace Liu"],["IM",1,"Marcus Bell"],
+  ["IM",2,"Aisha Bello"],["IM",2,"Ethan Kowalski"],["IM",2,"Meera Shah"],["IM",2,"Lucas Moreno"],["IM",2,"Julia Brennan"],["IM",2,"Tomás Rivera"],
+  ["IM",3,"Nadia Petrova"],["IM",3,"Samuel Adeyemi"],["IM",3,"Rachel Goldberg"],["IM",3,"Vikram Iyer"],["IM",3,"Chloe Martin"],["IM",3,"Jonah Fisher"],
+  ["TY",1,"Isabel Cruz"],["TY",1,"Ryan Choi"],["TY",1,"Leah Novak"],["TY",1,"Andre Thompson"],["TY",1,"Mina Farouk"],["TY",1,"Caleb Morgan"],["TY",1,"Yuki Tanaka"]
+].map(([p,y,n],i)=>({id:"r"+(i+1),program:p,pgy:y,name:n}));
+const PROG = {IM:"Internal Medicine",TY:"Transitional Year"};
+const initials = n => n.split(" ").map(s=>s[0]).join("").slice(0,2);
+const $ = id => document.getElementById(id);
+
+let notes = []; let program = "IM"; let current = null; let draft = null;
+const EXAMPLES = [
+  {id:"example-1",residentId:"r1",rotation:"Inpatient wards",setting:"After rounds",createdAt:"2026-11-04T13:20:00.000Z",
+   summary:"Example note: strong, organized presentation of a new admission; needs to commit to an assessment before listing the plan.",
+   strengths:["Clear, well-organized oral presentation","Anticipated discharge barriers early"],improve:["States data without a synthesized assessment"],
+   actions:["Lead with a one-line assessment and leading diagnosis on tomorrow's presentations"],tags:["PC","ICS"]},
+  {id:"example-2",residentId:"r21",rotation:"Night float",setting:"End of rotation",createdAt:"2026-11-03T12:05:00.000Z",
+   summary:"Example note: reliable on night float with timely escalation; handoffs could be tighter.",
+   strengths:["Escalated a deteriorating patient promptly","Calm communication with nursing"],improve:["Handoffs ran long and lacked explicit if/then contingencies"],
+   actions:["Use I-PASS with an action list and contingency plan for each sick patient"],tags:["PC","SBP","ICS"]}
+];
+function loadNotes(){ try{ const v = localStorage.getItem("rf-notes"); return v ? JSON.parse(v) : EXAMPLES.slice(); }catch(e){ return EXAMPLES.slice(); } }
+function saveNotes(){ try{ localStorage.setItem("rf-notes", JSON.stringify(notes)); }catch(e){ showBanner("This browser isn't keeping notes between visits (private mode?)."); } }
+function showBanner(t){ const b=$("storeBanner"); b.textContent=t; b.hidden=false; }
+notes = loadNotes();
+showBanner("Demo build: notes are kept in this browser only. Use fake residents and made-up feedback.");
+
+/* ---------- roster ---------- */
+function renderRoster(){
+  const q = $("q").value.trim().toLowerCase();
+  const list = ROSTER.filter(r => q ? r.name.toLowerCase().includes(q) : r.program===program);
+  const el = $("roster"); el.innerHTML = "";
+  if(!list.length){ el.innerHTML = '<div class="empty">No resident matches that name.</div>'; return; }
+  const groups = {};
+  list.forEach(r=>{ const k = (q? r.program+" · ":"")+"PGY-"+r.pgy; (groups[k]=groups[k]||[]).push(r); });
+  Object.keys(groups).sort().forEach(k=>{
+    const g = document.createElement("div"); g.className="group";
+    const h = document.createElement("div"); h.className="group-h";
+    const h2=document.createElement("h2"); h2.textContent = q? k.replace(/^(IM|TY)/,m=>PROG[m]) : k;
+    const c=document.createElement("span"); c.className="mono"; c.textContent=groups[k].length+" residents";
+    h.append(h2,c); g.append(h);
+    groups[k].sort((a,b)=>a.name.localeCompare(b.name)).forEach(r=>{
+      const n = notes.filter(x=>x.residentId===r.id).length;
+      const b = document.createElement("button"); b.className="res";
+      b.innerHTML = `<span class="av"></span><span class="nm"><b></b><span></span></span><span class="count${n?' has':''}"></span>`;
+      b.querySelector(".av").textContent = initials(r.name);
+      b.querySelector("b").textContent = r.name;
+      b.querySelector(".nm span").textContent = PROG[r.program]+" · PGY-"+r.pgy;
+      b.querySelector(".count").textContent = n ? n+(n===1?" note":" notes") : "—";
+      b.onclick = ()=>openRes(r);
+      g.append(b);
+    });
+    el.append(g);
+  });
+}
+document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
+  program=t.dataset.p; document.querySelectorAll(".tab").forEach(x=>x.setAttribute("aria-pressed", x===t)); renderRoster();
+});
+$("q").oninput = renderRoster;
+
+/* ---------- resident view ---------- */
+function openRes(r){
+  current = r; draft = null;
+  $("rAv").textContent = initials(r.name); $("rName").textContent = r.name;
+  $("rMeta").textContent = PROG[r.program]+" · PGY-"+r.pgy;
+  $("raw").value = ""; $("noteEdit").hidden = true; setStatus("");
+  $("rosterView").hidden = true; $("resView").hidden = false; window.scrollTo(0,0);
+  updateClean(); renderHist();
+}
+$("back").onclick = ()=>{ stopRec(); current=null; $("resView").hidden=true; $("rosterView").hidden=false; renderRoster(); };
+
+function renderHist(){
+  const el = $("hist"); el.innerHTML="";
+  const mine = notes.filter(n=>n.residentId===current.id).sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||""));
+  if(!mine.length){ el.innerHTML='<div class="empty">No feedback yet. Tap Talk to record the first note.</div>'; return; }
+  mine.forEach(n=>{
+    const e=document.createElement("div"); e.className="entry";
+    const d = new Date(n.createdAt);
+    e.innerHTML = `<div class="meta"><span class="mono"></span><span class="mono"></span></div><p></p>`;
+    e.querySelectorAll(".mono")[0].textContent = d.toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"})+" · "+d.toLocaleTimeString([], {hour:"numeric",minute:"2-digit"});
+    e.querySelectorAll(".mono")[1].textContent = (n.rotation||"")+(n.setting?" · "+n.setting:"");
+    e.querySelector("p").textContent = n.summary||"";
+    [["Strengths",n.strengths],["Areas to improve",n.improve],["Action items",n.actions]].forEach(([l,arr])=>{
+      if(!arr||!arr.length) return;
+      const lb=document.createElement("div"); lb.className="lbl"; lb.textContent=l;
+      const ul=document.createElement("ul"); arr.forEach(x=>{const li=document.createElement("li"); li.textContent=x; ul.append(li);});
+      e.append(lb,ul);
+    });
+    if(n.tags&&n.tags.length){ const t=document.createElement("div"); t.className="tags"; n.tags.forEach(x=>{const s=document.createElement("span"); s.className="tag"; s.textContent=x; t.append(s);}); e.append(t); }
+    el.append(e);
+  });
+}
+
+/* ---------- dictation ---------- */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null, live = false, base = "";
+function startRec(){
+  if(!SR){ fallbackDictation("This browser has no built-in speech recognition."); return; }
+  try{
+    rec = new SR(); rec.continuous = true; rec.interimResults = true; rec.lang = "en-US";
+    base = $("raw").value ? $("raw").value.replace(/\s*$/," ") : "";
+    rec.onresult = ev=>{
+      let fin="", interim="";
+      for(let i=0;i<ev.results.length;i++){ const t=ev.results[i][0].transcript; ev.results[i].isFinal ? fin+=t : interim+=t; }
+      $("raw").value = base + fin + interim; updateClean();
+    };
+    rec.onerror = ev=>{ stopRec(); if(ev.error==="not-allowed"||ev.error==="service-not-allowed"||ev.error==="audio-capture") fallbackDictation("The microphone isn't available on this page."); else setStatus("Dictation stopped ("+ev.error+"). Tap Talk to continue.", true); };
+    rec.onend = ()=>{ if(live) stopRec(); };
+    rec.start(); live = true;
+    $("talk").classList.add("live"); $("talkLbl").textContent="Stop"; $("talk").setAttribute("aria-label","Stop dictating");
+    setStatus("Listening…");
+  }catch(e){ fallbackDictation("The microphone isn't available on this page."); }
+}
+function stopRec(){
+  live=false; try{ rec&&rec.stop(); }catch(e){}
+  $("talk").classList.remove("live"); $("talkLbl").textContent="Talk"; $("talk").setAttribute("aria-label","Start dictating");
+  if($("status").textContent==="Listening…") setStatus("");
+}
+function fallbackDictation(why){
+  stopRec();
+  setStatus(why+" Tap the box below and use the microphone key on your phone's keyboard instead.", true);
+  $("raw").focus();
+}
+$("talk").onclick = ()=> live ? stopRec() : startRec();
+$("raw").oninput = updateClean;
+function updateClean(){ $("clean").disabled = $("raw").value.trim().length < 8; }
+$("clear").onclick = ()=>{ stopRec(); $("raw").value=""; $("noteEdit").hidden=true; draft=null; updateClean(); setStatus(""); };
+function setStatus(t,err){ const s=$("status"); s.textContent=t; s.classList.toggle("err",!!err); }
+
+/* ---------- AI cleanup (server function holds the API key) ---------- */
+function getPass(){ try{ return localStorage.getItem("rf-pass")||""; }catch(e){ return ""; } }
+function setPass(v){ try{ localStorage.setItem("rf-pass", v); }catch(e){} }
+$("passSave").onclick = ()=>{ setPass($("pass").value.trim()); $("passRow").hidden = true; $("clean").click(); };
+
+$("clean").onclick = async ()=>{
+  stopRec();
+  const pass = getPass();
+  if(!pass){ $("passRow").hidden = false; $("pass").focus(); setStatus("Enter the demo passcode once on this device."); return; }
+  const raw = $("raw").value.trim();
+  $("clean").disabled = true; setStatus("Cleaning up and removing patient identifiers…");
+  try{
+    const res = await fetch("/.netlify/functions/cleanup", {method:"POST", headers:{"Content-Type":"application/json","x-demo-passcode":pass},
+      body: JSON.stringify({dictation: raw, resident: current.name, program: PROG[current.program], pgy: current.pgy, rotation: $("rot").value, setting: $("setting").value})});
+    if(res.status===401){ setPass(""); $("passRow").hidden=false; $("pass").value=""; $("pass").focus(); throw {msg:"That passcode didn't match. Enter it again."}; }
+    const out = await res.json().catch(()=>({}));
+    if(!res.ok) throw {msg: out.error || "Cleanup didn't finish. Your dictation is still here; try again."};
+    draft = out;
+    $("fSum").value = draft.summary||"";
+    $("fStr").value = (draft.strengths||[]).join("\n");
+    $("fImp").value = (draft.improve||[]).join("\n");
+    $("fAct").value = (draft.actions||[]).join("\n");
+    const tg=$("fTags"); tg.innerHTML=""; (draft.tags||[]).forEach(x=>{const s=document.createElement("span"); s.className="tag"; s.textContent=x; tg.append(s);});
+    const phi = draft.phi_removed||[];
+    $("fPhi").className = "phi"+(phi.length?" found":"");
+    $("fPhi").textContent = phi.length ? "Removed: "+phi.join(", ")+". Check the text above before saving." : "No patient identifiers found.";
+    $("noteEdit").hidden = false; setStatus("Review the note, edit anything, then save. One item per line.");
+    $("noteEdit").scrollIntoView({behavior:"smooth",block:"start"});
+  }catch(e){
+    setStatus((e&&e.msg) || "Couldn't reach the cleanup service. Check your connection and try again.", true);
+  }finally{ updateClean(); }
+};
+
+const lines = id => $(id).value.split("\n").map(s=>s.replace(/^[-•*]\s*/,"").trim()).filter(Boolean);
+$("save").onclick = async ()=>{
+  const n = { residentId: current.id, residentName: current.name, program: current.program, pgy: current.pgy,
+    rotation: $("rot").value, setting: $("setting").value, createdAt: new Date().toISOString(),
+    summary: $("fSum").value.trim(), strengths: lines("fStr"), improve: lines("fImp"), actions: lines("fAct"),
+    tags: draft?.tags||[] };
+  notes.push({id:"n"+Date.now(), ...n}); saveNotes(); renderHist();
+  $("raw").value=""; $("noteEdit").hidden=true; draft=null; updateClean();
+  setStatus("Saved to "+current.name.split(" ")[0]+"'s record.");
+};
+
+renderRoster();
+})();
+</script>
+</body>
+</html>
